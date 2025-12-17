@@ -1,2 +1,174 @@
-# ideasphere
-New Ideaspace website
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>IdeaSphere — Where Ideas Rise</title>
+  <meta name="description" content="A reflective platform for nurturing, evolving, and protecting ideas." />
+
+  <!-- Bootstrap 5 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <style>
+    :root {
+      --primary:#00798c; --dark:#0f172a; --muted:#64748b; --bg:#f8fafc;
+    }
+    body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--dark);scroll-behavior:smooth;}
+    .navbar{background:var(--primary);} .navbar-brand,.nav-link{color:#fff!important;font-weight:500;}
+    .hero{min-height:100vh;background:linear-gradient(rgba(0,121,140,.92),rgba(0,121,140,.92)),url('https://r.mobirisesite.com/2111891/assets/images/photo-1758270704787-615782711641.jpeg') center/cover no-repeat;color:#fff;display:flex;align-items:center;text-align:center;}
+    .idea-card{background:#fff;border-radius:16px;padding:25px;box-shadow:0 15px 40px rgba(0,0,0,.08);transition:.3s;height:100%;}
+    .idea-card:hover{transform:translateY(-6px);box-shadow:0 25px 60px rgba(0,0,0,.15);}    
+    .btn-primary{background:var(--primary);border:none;} footer{background:#020617;color:#e5e7eb;text-align:center;padding:40px 15px;}
+    .dark-mode{background:#0b1220;color:#fff;} .dark-mode .idea-card{background:#111827;color:#fff;} .dark-mode .navbar{background:#020617;}
+    .fade-in{animation:fadeIn 1.8s ease;} @keyframes fadeIn{from{opacity:0;transform:translateY(40px);}to{opacity:1;}}
+  </style>
+</head>
+<body>
+
+<button id="modeToggle" class="btn btn-sm btn-outline-light position-fixed" style="top:20px;right:20px;z-index:999">🌙</button>
+
+<nav class="navbar navbar-expand-lg fixed-top">
+  <div class="container">
+    <a class="navbar-brand" href="#">IdeaSphere</a>
+    <ul class="navbar-nav ms-auto">
+      <li class="nav-item"><a class="nav-link" href="#share">Share</a></li>
+      <li class="nav-item"><a class="nav-link" href="#ideas">Ideas</a></li>
+      <li class="nav-item"><a class="nav-link" href="#vision">Vision</a></li>
+    </ul>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="container">
+    <p class="fs-4">A Platform for Thought</p>
+    <h1 class="display-1 fw-bold fade-in">Ideas Deserve Time</h1>
+    <p class="lead">Before ideas change the world, they need a safe place to grow.</p>
+    <a href="#share" class="btn btn-light btn-lg mt-4">Release an Idea</a>
+  </div>
+</section>
+
+<section id="share" class="py-5">
+  <div class="container">
+    <h2>Release an Idea</h2>
+    <p class="text-muted">Every idea starts unfinished. Write anyway.</p>
+    <input id="title" class="form-control mb-3" placeholder="Idea title" />
+    <textarea id="content" class="form-control mb-3" rows="4" placeholder="Describe your idea..."></textarea>
+    <input id="tags" class="form-control mb-3" placeholder="Tags (comma separated)" />
+    <select id="category" class="form-control mb-3"><option>Technology</option><option>Business</option><option>Philosophy</option><option>Creativity</option><option>Life</option></select>
+    <button class="btn btn-primary btn-lg" onclick="addIdea();giveAIFeedback();">Share Idea</button>
+  </div>
+</section>
+
+<section class="bg-light py-5">
+  <div class="container">
+    <h2>AI Reflection</h2>
+    <p class="text-muted">Not judgment. Just perspective.</p>
+    <div id="aiBox" class="idea-card"><p class="text-muted">Your idea will speak here.</p></div>
+  </div>
+</section>
+
+<section id="ideas" class="py-5">
+  <div class="container">
+    <h2>Community Ideas</h2>
+    <input class="form-control mb-4" placeholder="Search ideas..." oninput="searchIdeas(this.value)">
+    <div id="featured" class="mb-4"></div>
+    <p id="emptyState" class="text-muted text-center">Silence is the beginning of thought.</p>
+    <div id="ideaList" class="row g-4"></div>
+  </div>
+</section>
+
+<section id="vision" class="bg-dark text-light py-5">
+  <div class="container">
+    <h2>Why IdeaSphere Exists</h2>
+    <p class="lead">This is not social media. This is a thinking space.</p>
+    <p>Ideas are fragile before they are powerful. Here, they are allowed to be incomplete, questioned, and evolved — without noise.</p>
+  </div>
+</section>
+
+<footer>
+  <p class="fw-bold">IdeaSphere</p>
+  <small>Protecting ideas before the world is ready.</small><br>
+  <button class="btn btn-outline-light btn-sm mt-2" onclick="exportIdeas()">Export Ideas as PDF</button>
+</footer>
+
+<!-- FIREBASE + GLOBAL IDEAS -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+  import {
+    getAuth, signInAnonymously
+  } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBJ7AsQqaeLM0THYj1PU7TcnP_gciifGf4",
+  authDomain: "ideasphere-e9626.firebaseapp.com",
+  projectId: "ideasphere-e9626",
+  storageBucket: "ideasphere-e9626.firebasestorage.app",
+  messagingSenderId: "620280778584",
+  appId: "1:620280778584:web:8db63490c4532d30e3df2d",
+  measurementId: "G-W1B3M7JJEQ"
+};
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  signInAnonymously(auth);
+
+  async function addIdea() {
+    const title = document.getElementById('title').value.trim();
+    const content = document.getElementById('content').value.trim();
+    const category = document.getElementById('category').value;
+
+    if (!title || !content) {
+      alert('Please complete the idea.');
+      return;
+    }
+
+    await addDoc(collection(db, 'ideas'), {
+      title,
+      content,
+      category,
+      likes: 0,
+      createdAt: serverTimestamp()
+    });
+
+    document.getElementById('title').value = '';
+    document.getElementById('content').value = '';
+  }
+
+  const ideaList = document.getElementById('ideaList');
+  const empty = document.getElementById('emptyState');
+  const q = query(collection(db, 'ideas'), orderBy('createdAt', 'desc'));
+
+  onSnapshot(q, (snapshot) => {
+    ideaList.innerHTML = '';
+    if (snapshot.empty) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    snapshot.forEach(doc => {
+      const idea = doc.data();
+      ideaList.innerHTML += `
+        <div class="col-md-4">
+          <div class="idea-card">
+            <small class="text-muted">${idea.category}</small>
+            <h5 class="mt-2">${idea.title}</h5>
+            <p>${idea.content}</p>
+            <small class="text-muted">Shared globally</small>
+          </div>
+        </div>`;
+    });
+  });
+
+  window.addIdea = addIdea;
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
